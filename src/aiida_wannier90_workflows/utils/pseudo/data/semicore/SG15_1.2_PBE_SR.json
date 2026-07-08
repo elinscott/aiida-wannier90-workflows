@@ -1,0 +1,693 @@
+{
+ "Ag": {
+  "filename": "Ag.upf",
+  "md5": "2fe2fe769560ddf16f28d1c82859634b",
+  "pswfcs": [
+   "3D",
+   "4P",
+   "5S",
+   "4D"
+  ],
+  "semicores": []
+ },
+ "Al": {
+  "filename": "Al.upf",
+  "md5": "2d9e7bc02555220d62fad08c3c4858e7",
+  "pswfcs": [
+   "2S",
+   "2P",
+   "3S",
+   "3P"
+  ],
+  "semicores": []
+ },
+ "Ar": {
+  "filename": "Ar.upf",
+  "md5": "620464c3264a40e7652fb6a19ca6aabb",
+  "pswfcs": [
+   "3S",
+   "3P"
+  ],
+  "semicores": []
+ },
+ "As": {
+  "filename": "As.upf",
+  "md5": "a2ff92a4799c87c945fff9e6739df4dd",
+  "pswfcs": [
+   "3D",
+   "4P"
+  ],
+  "semicores": []
+ },
+ "Au": {
+  "filename": "Au.upf",
+  "md5": "f1fb308199c003f2685d368a77737662",
+  "pswfcs": [
+   "4F",
+   "5D"
+  ],
+  "semicores": []
+ },
+ "B": {
+  "filename": "B.upf",
+  "md5": "eb3cbeacc2d324d57d903df00f564d27",
+  "pswfcs": [
+   "2S",
+   "2P"
+  ],
+  "semicores": []
+ },
+ "Ba": {
+  "filename": "Ba.upf",
+  "md5": "ac4691792522964bb0504809e83fae44",
+  "pswfcs": [
+   "4D",
+   "5P",
+   "6S"
+  ],
+  "semicores": []
+ },
+ "Be": {
+  "filename": "Be.upf",
+  "md5": "dc1f98d164da9dc61a6fd2fad64b4ce2",
+  "pswfcs": [
+   "1S",
+   "2S"
+  ],
+  "semicores": []
+ },
+ "Bi": {
+  "filename": "Bi.upf",
+  "md5": "466ad95cf85bb96570530ca8227dbbeb",
+  "pswfcs": [
+   "4F",
+   "5D",
+   "6P"
+  ],
+  "semicores": []
+ },
+ "Br": {
+  "filename": "Br.upf",
+  "md5": "5b50323dbf1c0ae0ed9e7f1e72c3f86c",
+  "pswfcs": [
+   "3D",
+   "4P"
+  ],
+  "semicores": []
+ },
+ "C": {
+  "filename": "C.upf",
+  "md5": "1a5f83a7b1f58d24996abe00ed223ac6",
+  "pswfcs": [
+   "2S",
+   "2P"
+  ],
+  "semicores": []
+ },
+ "Ca": {
+  "filename": "Ca.upf",
+  "md5": "b43c970dc090f2312d256360aabdb6f1",
+  "pswfcs": [
+   "3S",
+   "3P",
+   "4S"
+  ],
+  "semicores": []
+ },
+ "Cd": {
+  "filename": "Cd.upf",
+  "md5": "810a600e5a5ac944c8c8f48f0d721646",
+  "pswfcs": [
+   "3D",
+   "4P",
+   "5S",
+   "4D"
+  ],
+  "semicores": []
+ },
+ "Cl": {
+  "filename": "Cl.upf",
+  "md5": "0f993535b366f580ecbcdacce103c843",
+  "pswfcs": [
+   "3S",
+   "3P"
+  ],
+  "semicores": []
+ },
+ "Co": {
+  "filename": "Co.upf",
+  "md5": "04640e31e65e5bce9f0417487be359f7",
+  "pswfcs": [
+   "3S",
+   "3P",
+   "4S",
+   "3D"
+  ],
+  "semicores": []
+ },
+ "Cr": {
+  "filename": "Cr.upf",
+  "md5": "0255d02b03cf84fc55cc6b241d32e7e3",
+  "pswfcs": [
+   "3S",
+   "3P",
+   "4S",
+   "3D"
+  ],
+  "semicores": []
+ },
+ "Cs": {
+  "filename": "Cs.upf",
+  "md5": "74aa1fd125ef9ec93322f365f25225f6",
+  "pswfcs": [
+   "4D",
+   "5P",
+   "6S"
+  ],
+  "semicores": []
+ },
+ "Cu": {
+  "filename": "Cu.upf",
+  "md5": "80213f8971cc881d9b4c24e0a73cd931",
+  "pswfcs": [
+   "3S",
+   "3P",
+   "4S",
+   "3D"
+  ],
+  "semicores": []
+ },
+ "F": {
+  "filename": "F.upf",
+  "md5": "1d8275f47d602dd53cad6bcdc0eda7dc",
+  "pswfcs": [
+   "2S",
+   "2P"
+  ],
+  "semicores": []
+ },
+ "Fe": {
+  "filename": "Fe.upf",
+  "md5": "0a0a3b4237ca738a29386c4fd1f8ac5e",
+  "pswfcs": [
+   "3S",
+   "3P",
+   "4S",
+   "3D"
+  ],
+  "semicores": []
+ },
+ "Ga": {
+  "filename": "Ga.upf",
+  "md5": "9961a622ff199abf6dfec9a0a10b8555",
+  "pswfcs": [
+   "4S",
+   "3D",
+   "4P"
+  ],
+  "semicores": []
+ },
+ "Ge": {
+  "filename": "Ge.upf",
+  "md5": "9f45083245c564cb2163622d60d05ca9",
+  "pswfcs": [
+   "4S",
+   "3D",
+   "4P"
+  ],
+  "semicores": []
+ },
+ "H": {
+  "filename": "H.upf",
+  "md5": "bf21e08b90ac4ce7d0149ac4e8138190",
+  "pswfcs": [
+   "1S"
+  ],
+  "semicores": []
+ },
+ "He": {
+  "filename": "He.upf",
+  "md5": "418df6a6107c66ad9c58e3a9fd7c1391",
+  "pswfcs": [
+   "1S"
+  ],
+  "semicores": []
+ },
+ "Hf": {
+  "filename": "Hf.upf",
+  "md5": "8b936da71c3de5b2d618430abe03e8dd",
+  "pswfcs": [
+   "4D",
+   "5P",
+   "6S",
+   "4F",
+   "5D"
+  ],
+  "semicores": []
+ },
+ "Hg": {
+  "filename": "Hg.upf",
+  "md5": "75c352c54b44c4d9a0e4b4d12a9fc465",
+  "pswfcs": [
+   "4F",
+   "5D"
+  ],
+  "semicores": []
+ },
+ "I": {
+  "filename": "I.upf",
+  "md5": "8277ef51204d8074ead4596f3b37a2aa",
+  "pswfcs": [
+   "5S",
+   "4D",
+   "5P"
+  ],
+  "semicores": []
+ },
+ "In": {
+  "filename": "In.upf",
+  "md5": "2123f823f6143602c63cd302e3a0bdd6",
+  "pswfcs": [
+   "5S",
+   "4D",
+   "5P"
+  ],
+  "semicores": []
+ },
+ "Ir": {
+  "filename": "Ir.upf",
+  "md5": "64b6f4334f2f5c6cbe46a2044e940533",
+  "pswfcs": [
+   "4F",
+   "5D"
+  ],
+  "semicores": []
+ },
+ "K": {
+  "filename": "K.upf",
+  "md5": "254690d02b26e0029262a4c77e854448",
+  "pswfcs": [
+   "3S",
+   "3P",
+   "4S"
+  ],
+  "semicores": []
+ },
+ "Kr": {
+  "filename": "Kr.upf",
+  "md5": "4a275f71d3bc7366299250ec96e82e35",
+  "pswfcs": [
+   "3D",
+   "4P"
+  ],
+  "semicores": []
+ },
+ "La": {
+  "filename": "La.upf",
+  "md5": "a50acaeba93a6b852b3e187ea6859932",
+  "pswfcs": [
+   "4D",
+   "5P",
+   "6S",
+   "4F"
+  ],
+  "semicores": []
+ },
+ "Li": {
+  "filename": "Li.upf",
+  "md5": "c91dd4cee9943b136ac3b62641658f95",
+  "pswfcs": [
+   "1S",
+   "2S"
+  ],
+  "semicores": []
+ },
+ "Mg": {
+  "filename": "Mg.upf",
+  "md5": "330956729b1f868fdecd9f5113f6a961",
+  "pswfcs": [
+   "2S",
+   "2P",
+   "3S"
+  ],
+  "semicores": []
+ },
+ "Mn": {
+  "filename": "Mn.upf",
+  "md5": "f1974185ea910881ed4f8c62850fbe21",
+  "pswfcs": [
+   "3S",
+   "3P",
+   "4S",
+   "3D"
+  ],
+  "semicores": []
+ },
+ "Mo": {
+  "filename": "Mo.upf",
+  "md5": "2665c9f4159700498d9a5f7573bd8e9f",
+  "pswfcs": [
+   "3D",
+   "4P",
+   "5S",
+   "4D"
+  ],
+  "semicores": []
+ },
+ "N": {
+  "filename": "N.upf",
+  "md5": "c233fa8df51455e992258b7c3dee8a9f",
+  "pswfcs": [
+   "2S",
+   "2P"
+  ],
+  "semicores": []
+ },
+ "Na": {
+  "filename": "Na.upf",
+  "md5": "425b17ce8ead78efa4860b7b3310c7e3",
+  "pswfcs": [
+   "2S",
+   "2P",
+   "3S"
+  ],
+  "semicores": []
+ },
+ "Nb": {
+  "filename": "Nb.upf",
+  "md5": "2c750ac0b6910ff4cf0ab5f6c4124a64",
+  "pswfcs": [
+   "3D",
+   "4P",
+   "5S",
+   "4D"
+  ],
+  "semicores": []
+ },
+ "Ne": {
+  "filename": "Ne.upf",
+  "md5": "56c1d532db00fbb77b1f83d77596279c",
+  "pswfcs": [
+   "2S",
+   "2P"
+  ],
+  "semicores": []
+ },
+ "Ni": {
+  "filename": "Ni.upf",
+  "md5": "55535897b6cdd76968afcf118faefcdb",
+  "pswfcs": [
+   "3S",
+   "3P",
+   "4S",
+   "3D"
+  ],
+  "semicores": []
+ },
+ "O": {
+  "filename": "O.upf",
+  "md5": "e36c48deb68f4e355fffe4602be2c42c",
+  "pswfcs": [
+   "2S",
+   "2P"
+  ],
+  "semicores": []
+ },
+ "Os": {
+  "filename": "Os.upf",
+  "md5": "95cd203db9fc26cc83e0e7c2505c7528",
+  "pswfcs": [
+   "4F",
+   "5D"
+  ],
+  "semicores": []
+ },
+ "P": {
+  "filename": "P.upf",
+  "md5": "0688a67b2b263c6b42d3d97c42745426",
+  "pswfcs": [
+   "3S",
+   "3P"
+  ],
+  "semicores": []
+ },
+ "Pb": {
+  "filename": "Pb.upf",
+  "md5": "7f27c247474026287e0dbe0f3167d60b",
+  "pswfcs": [
+   "4F",
+   "5D",
+   "6P"
+  ],
+  "semicores": []
+ },
+ "Pd": {
+  "filename": "Pd.upf",
+  "md5": "e3c433d8ebd97573e3ed27e79cbff982",
+  "pswfcs": [
+   "3D",
+   "4P",
+   "5S",
+   "4D"
+  ],
+  "semicores": []
+ },
+ "Pt": {
+  "filename": "Pt.upf",
+  "md5": "8004706280e9ad985b09789750a103d6",
+  "pswfcs": [
+   "4F",
+   "5D"
+  ],
+  "semicores": []
+ },
+ "Rb": {
+  "filename": "Rb.upf",
+  "md5": "bb775b689f47c500e9d7b0b27148fdc3",
+  "pswfcs": [
+   "3D",
+   "4P",
+   "5S"
+  ],
+  "semicores": []
+ },
+ "Re": {
+  "filename": "Re.upf",
+  "md5": "4297b400dafefbd7d2310d537c12c9e3",
+  "pswfcs": [
+   "4F",
+   "5D"
+  ],
+  "semicores": []
+ },
+ "Rh": {
+  "filename": "Rh.upf",
+  "md5": "bad865ff0eae7a34a2bc08b65ba9af62",
+  "pswfcs": [
+   "3D",
+   "4P",
+   "5S",
+   "4D"
+  ],
+  "semicores": []
+ },
+ "Ru": {
+  "filename": "Ru.upf",
+  "md5": "197966c748556f6a714a34a8c7eb0781",
+  "pswfcs": [
+   "3D",
+   "4P",
+   "5S",
+   "4D"
+  ],
+  "semicores": []
+ },
+ "S": {
+  "filename": "S.upf",
+  "md5": "f9d020296ee6110346977bfd66d424f6",
+  "pswfcs": [
+   "3S",
+   "3P"
+  ],
+  "semicores": []
+ },
+ "Sb": {
+  "filename": "Sb.upf",
+  "md5": "0417cd6c0fe8ce4611e2b23135f1abd9",
+  "pswfcs": [
+   "5S",
+   "4D",
+   "5P"
+  ],
+  "semicores": []
+ },
+ "Sc": {
+  "filename": "Sc.upf",
+  "md5": "568f19b7b61c3d0b402a2bd7fd55329d",
+  "pswfcs": [
+   "3S",
+   "3P",
+   "4S",
+   "3D"
+  ],
+  "semicores": []
+ },
+ "Se": {
+  "filename": "Se.upf",
+  "md5": "e78e48a4f5d8ce1f8dc76ec1271f249c",
+  "pswfcs": [
+   "3D",
+   "4P"
+  ],
+  "semicores": []
+ },
+ "Si": {
+  "filename": "Si.upf",
+  "md5": "7f029a58b69e3aa87b46a36c608bf45e",
+  "pswfcs": [
+   "3S",
+   "3P"
+  ],
+  "semicores": []
+ },
+ "Sn": {
+  "filename": "Sn.upf",
+  "md5": "6680f7ee4d83b53e0fcd4167fcb72813",
+  "pswfcs": [
+   "5S",
+   "4D",
+   "5P"
+  ],
+  "semicores": []
+ },
+ "Sr": {
+  "filename": "Sr.upf",
+  "md5": "3f9bc8d6f3e8472da0cbe0e6a3044a9f",
+  "pswfcs": [
+   "3D",
+   "4P",
+   "5S"
+  ],
+  "semicores": []
+ },
+ "Ta": {
+  "filename": "Ta.upf",
+  "md5": "f2cdc1b02ee8c9fca9f40047f80bd2d0",
+  "pswfcs": [
+   "4D",
+   "5P",
+   "6S",
+   "4F",
+   "5D"
+  ],
+  "semicores": []
+ },
+ "Tc": {
+  "filename": "Tc.upf",
+  "md5": "a68557d032afc143f4590074a8d695cc",
+  "pswfcs": [
+   "3D",
+   "4P",
+   "5S",
+   "4D"
+  ],
+  "semicores": []
+ },
+ "Te": {
+  "filename": "Te.upf",
+  "md5": "dd4de4dac1e38587f63aaf3700bb29d3",
+  "pswfcs": [
+   "5S",
+   "4D",
+   "5P"
+  ],
+  "semicores": []
+ },
+ "Ti": {
+  "filename": "Ti.upf",
+  "md5": "1aea57736bd12dcfee93c97d0b9b5968",
+  "pswfcs": [
+   "3S",
+   "3P",
+   "4S",
+   "3D"
+  ],
+  "semicores": []
+ },
+ "Tl": {
+  "filename": "Tl.upf",
+  "md5": "e609bed4a69cad82b6107f8b9c0b5d83",
+  "pswfcs": [
+   "4F",
+   "5D",
+   "6P"
+  ],
+  "semicores": []
+ },
+ "V": {
+  "filename": "V.upf",
+  "md5": "bee011fc3bed2e4eab367565d2f8133f",
+  "pswfcs": [
+   "3S",
+   "3P",
+   "4S",
+   "3D"
+  ],
+  "semicores": []
+ },
+ "W": {
+  "filename": "W.upf",
+  "md5": "b6096f31a98cdd82a46cfdcd1f902baf",
+  "pswfcs": [
+   "4D",
+   "5P",
+   "6S",
+   "4F",
+   "5D"
+  ],
+  "semicores": []
+ },
+ "Xe": {
+  "filename": "Xe.upf",
+  "md5": "cc9f462402d923a4ee0779e880a8f0fc",
+  "pswfcs": [
+   "5S",
+   "4D",
+   "5P"
+  ],
+  "semicores": []
+ },
+ "Y": {
+  "filename": "Y.upf",
+  "md5": "1a657b90673a6e990374512484d9703d",
+  "pswfcs": [
+   "3D",
+   "4P",
+   "5S",
+   "4D"
+  ],
+  "semicores": []
+ },
+ "Zn": {
+  "filename": "Zn.upf",
+  "md5": "732f41c0cd6489a4b50a33b4ec99a2d3",
+  "pswfcs": [
+   "3S",
+   "3P",
+   "4S",
+   "3D"
+  ],
+  "semicores": []
+ },
+ "Zr": {
+  "filename": "Zr.upf",
+  "md5": "ee74f20ae918ae65efd70112ea888f9c",
+  "pswfcs": [
+   "3D",
+   "4P",
+   "5S",
+   "4D"
+  ],
+  "semicores": []
+ }
+}

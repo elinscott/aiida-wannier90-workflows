@@ -96,6 +96,11 @@ def get_pseudo_orbitals(pseudos: ty.Mapping[str, PseudoPotentialData]) -> dict:
         load_pseudo_metadata("semicore/PseudoDojo_0.4_PBEsol_FR_standard_upf.json")
     )
     pseudo_data.append(load_pseudo_metadata("semicore/pslibrary_paw_relpbe_1.0.0.json"))
+    # SG15 ONCV pseudos ship empty PP_PSWFC blocks, so this table's pswfcs are
+    # inferred from each pseudo's z_valence (aufbau); semicores are left empty
+    # (nothing is excluded). Generated against the aiida-pseudo-installed
+    # SG15/1.2/PBE/SR family (koopmans archive, 2020-02-06).
+    pseudo_data.append(load_pseudo_metadata("semicore/SG15_1.2_PBE_SR.json"))
 
     pseudo_orbitals = {}
     # pseudos dictionary will contain kinds as keys, which may change
