@@ -55,6 +55,42 @@ class WannierFrozenType(enum.Enum):
     FIXED_PLUS_PROJECTABILITY = "fixed_plus_projectability"
 
 
+class OptimizeStrategy(enum.Enum):
+    """Enumeration to indicate the optimization strategy for dis_proj_min/max."""
+
+    # Exhaustive grid search over all (dis_proj_min, dis_proj_max) combinations
+    GRID = "grid"
+
+    # Bayesian optimization using Gaussian process surrogate model
+    BAYESIAN = "bayesian"
+
+
+class OptimizeMetric(enum.Enum):
+    """Enumeration to indicate the metric used for optimization."""
+
+    # Fermi-Dirac-weighted bands distance with configurable mu and sigma
+    FERMI_DIRAC = "fermi_dirac"
+
+    # Legacy alias: Fermi-Dirac at Ef+2eV with sigma=0.1
+    FERMI_DIRAC_EF2 = "fermi_dirac_ef2"
+
+    # Unweighted RMS bands distance across all bands equally (sigma -> inf)
+    UNWEIGHTED_RMS = "unweighted_rms"
+
+
+class OptimizeMuReference(enum.Enum):
+    """Enumeration to indicate the reference point for the Fermi-Dirac mu parameter."""
+
+    # mu = fermi_energy + mu_shift
+    FERMI_ENERGY = "fermi_energy"
+
+    # mu = CBM + mu_shift, where CBM is extracted from the reference bands
+    CBM = "cbm"
+
+    # mu = VBM + mu_shift, where VBM is extracted from the reference bands
+    VBM = "vbm"
+
+
 class WannierFileFormat(enum.Enum):
     """Enumeration to indicate the format of amn/mmn/eig/spn/unk files."""
 

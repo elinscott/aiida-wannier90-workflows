@@ -12,13 +12,23 @@ from aiida.orm.nodes.data.base import to_aiida_type
 
 from aiida_quantumespresso.utils.mapping import prepare_process_inputs
 
-from aiida_wannier90_workflows.common.types import WannierProjectionType
+from aiida_wannier90_workflows.common.types import (
+    OptimizeMetric,
+    OptimizeMuReference,
+    OptimizeStrategy,
+    WannierProjectionType,
+)
 from aiida_wannier90_workflows.utils.workflows import get_last_calcjob
 
 from .bands import Wannier90BandsWorkChain
 from .base.wannier90 import Wannier90BaseWorkChain
 
-__all__ = ["validate_inputs", "Wannier90OptimizeWorkChain"]
+__all__ = [
+    "validate_inputs",
+    "Wannier90OptimizeWorkChain",
+    "OptimizeStrategy",
+    "OptimizeMetric",
+]
 
 
 def validate_inputs(inputs, ctx=None):  # pylint: disable=unused-argument
@@ -47,6 +57,30 @@ def validate_inputs(inputs, ctx=None):  # pylint: disable=unused-argument
         and "optimize_reference_bands" not in inputs
     ):
         return "No `optimize_reference_bands` but `optimize_bands_distance_threshold` is set?"
+
+    # Validate optimize_strategy and optimize_metric enum values
+    strategy_value = inputs.get("optimize_strategy", OptimizeStrategy.GRID.value)
+    if isinstance(strategy_value, orm.Str):
+        strategy_value = strategy_value.value
+    try:
+        strategy = OptimizeStrategy(strategy_value)
+    except ValueError:
+        valid = [s.value for s in OptimizeStrategy]
+        return f"Invalid optimize_strategy {strategy_value!r}, must be one of {valid}"
+
+    metric_value = inputs.get("optimize_metric", OptimizeMetric.FERMI_DIRAC.value)
+    if isinstance(metric_value, orm.Str):
+        metric_value = metric_value.value
+    try:
+        OptimizeMetric(metric_value)
+    except ValueError:
+        valid = [m.value for m in OptimizeMetric]
+        return f"Invalid optimize_metric {metric_value!r}, must be one of {valid}"
+
+    if strategy == OptimizeStrategy.BAYESIAN and "optimize_reference_bands" not in inputs:
+        return (
+            "Bayesian optimization requires `optimize_reference_bands` to compute the objective."
+        )
 
     separate_plotting = inputs.get("separate_plotting", False)
     plot_inputs = [
@@ -135,7 +169,8 @@ class Wannier90OptimizeWorkChain(
             default=lambda: orm.List(list=list(np.linspace(0.99, 0.85, 15))),
             serializer=to_aiida_type,
             help=(
-                "The range to iterate dis_proj_max. `None` means disabling projectability disentanglement."
+                "The range to iterate dis_proj_max. `None` means disabling projectability disentanglement. "
+                "Used by the GRID strategy; for BAYESIAN, this defines the lower and upper bounds."
             ),
         )
         spec.input(
@@ -144,7 +179,74 @@ class Wannier90OptimizeWorkChain(
             default=lambda: orm.List(list=list(np.linspace(0.01, 0.02, 2))),
             serializer=to_aiida_type,
             help=(
-                "The range to iterate dis_proj_min. `None` means disabling projectability disentanglement."
+                "The range to iterate dis_proj_min. `None` means disabling projectability disentanglement. "
+                "For BAYESIAN strategy, only the first value is used (dis_proj_min is held fixed)."
+            ),
+        )
+        spec.input(
+            "optimize_strategy",
+            valid_type=orm.Str,
+            default=lambda: orm.Str(OptimizeStrategy.GRID.value),
+            serializer=to_aiida_type,
+            help=(
+                "Optimization strategy: 'grid' for exhaustive sweep over all combinations, "
+                "'bayesian' for Gaussian-process-guided search."
+            ),
+        )
+        spec.input(
+            "optimize_metric",
+            valid_type=orm.Str,
+            default=lambda: orm.Str(OptimizeMetric.FERMI_DIRAC.value),
+            serializer=to_aiida_type,
+            help=(
+                "Metric for evaluating band quality: "
+                "'fermi_dirac' uses Fermi-Dirac-weighted distance with configurable mu/sigma, "
+                "'fermi_dirac_ef2' is a legacy alias (mu=Ef+2, sigma=0.1), "
+                "'unweighted_rms' uses plain RMS across all bands equally."
+            ),
+        )
+        spec.input(
+            "optimize_mu_shift",
+            valid_type=orm.Float,
+            default=lambda: orm.Float(2.0),
+            serializer=to_aiida_type,
+            help=(
+                "Shift of the Fermi-Dirac center relative to the Fermi energy (eV). "
+                "mu = fermi_energy + optimize_mu_shift. Only used with 'fermi_dirac' metric."
+            ),
+        )
+        spec.input(
+            "optimize_sigma",
+            valid_type=orm.Float,
+            default=lambda: orm.Float(0.1),
+            serializer=to_aiida_type,
+            help=(
+                "Broadening of the Fermi-Dirac weight (eV). Small values (~0.1) give a sharp "
+                "step function; large values (~2-5) give a smooth, long-tailed weight. "
+                "Only used with 'fermi_dirac' metric."
+            ),
+        )
+        spec.input(
+            "optimize_mu_reference",
+            valid_type=orm.Str,
+            default=lambda: orm.Str(OptimizeMuReference.FERMI_ENERGY.value),
+            serializer=to_aiida_type,
+            help=(
+                "Reference point for the Fermi-Dirac mu parameter: "
+                "'fermi_energy' sets mu = Ef + mu_shift, "
+                "'cbm' sets mu = CBM + mu_shift, "
+                "'vbm' sets mu = VBM + mu_shift. "
+                "CBM/VBM are extracted from optimize_reference_bands."
+            ),
+        )
+        spec.input(
+            "optimize_max_iterations",
+            valid_type=orm.Int,
+            required=False,
+            serializer=to_aiida_type,
+            help=(
+                "Maximum number of optimization iterations for BAYESIAN strategy. "
+                "Ignored for GRID strategy (which always evaluates all combinations)."
             ),
         )
         spec.input(
@@ -291,6 +393,9 @@ class Wannier90OptimizeWorkChain(
         *,
         reference_bands: orm.BandsData = None,
         bands_distance_threshold: float = 1e-2,  # unit is eV
+        optimize_strategy: OptimizeStrategy = OptimizeStrategy.GRID,
+        optimize_metric: OptimizeMetric = OptimizeMetric.FERMI_DIRAC,
+        optimize_max_iterations: int = None,
         **kwargs,
     ) -> ProcessBuilder:
         """Return a builder prepopulated with inputs selected according to the specified arguments.
@@ -348,6 +453,11 @@ class Wannier90OptimizeWorkChain(
             builder.optimize_reference_bands = reference_bands
             builder.optimize_bands_distance_threshold = bands_distance_threshold
 
+        builder.optimize_strategy = optimize_strategy.value
+        builder.optimize_metric = optimize_metric.value
+        if optimize_max_iterations is not None:
+            builder.optimize_max_iterations = optimize_max_iterations
+
         if builder.optimize_disproj:
             # If optimizing dis_proj_min/max,
             # make sure Wannier functions are plotted in a separate step since it is heavy
@@ -363,17 +473,36 @@ class Wannier90OptimizeWorkChain(
         """Define the current structure in the context to be the input structure."""
         super().setup()
 
+        self.ctx.optimize_strategy = OptimizeStrategy(
+            self.inputs["optimize_strategy"].value
+        )
+        self.ctx.optimize_metric = OptimizeMetric(
+            self.inputs["optimize_metric"].value
+        )
+
         dis_proj_min = self.inputs["optimize_disprojmin_range"].get_list()
         dis_proj_max = self.inputs["optimize_disprojmax_range"].get_list()
-        # dis_proj_max changes the fastest
-        self.ctx.optimize_minmax_new = [
-            (i, j) for i in dis_proj_min for j in dis_proj_max
-        ]
 
-        # Arrays to save calculated results
+        # Arrays to save calculated results (must be initialized before
+        # _bayesian_next_candidate, which reads optimize_minmax)
         self.ctx.optimize_minmax = []
         self.ctx.optimize_bandsdist = []
         self.ctx.optimize_spreads_imbalence = []
+
+        if self.ctx.optimize_strategy == OptimizeStrategy.GRID:
+            # dis_proj_max changes the fastest
+            self.ctx.optimize_minmax_new = [
+                (i, j) for i in dis_proj_min for j in dis_proj_max
+            ]
+        elif self.ctx.optimize_strategy == OptimizeStrategy.BAYESIAN:
+            self.ctx.bayesian_bounds = [
+                (min(dis_proj_min), max(dis_proj_min)),
+                (min(dis_proj_max), max(dis_proj_max)),
+            ]
+            max_iter = self.inputs.get("optimize_max_iterations", orm.Int(5)).value
+            self.ctx.bayesian_max_iterations = max_iter
+            # Seed with a single initial point; subsequent points are chosen by the GP
+            self.ctx.optimize_minmax_new = [self._bayesian_next_candidate()]
         # The optimal wannier90 workchain
         self.ctx.optimize_best = None
         # Store the spinor bands for spin_collinear calculation
@@ -395,6 +524,11 @@ class Wannier90OptimizeWorkChain(
         """Whether should optimize dis_proj_min/max."""
         if not self.inputs["optimize_disproj"]:
             return False
+
+        # For Bayesian strategy, enforce max iteration count
+        if self.ctx.optimize_strategy == OptimizeStrategy.BAYESIAN:
+            if len(self.ctx.optimize_minmax) >= self.ctx.bayesian_max_iterations:
+                self.ctx.optimize_minmax_new = []
 
         if "optimize_bands_distance_threshold" in self.inputs:
             threshold = self.inputs["optimize_bands_distance_threshold"]
@@ -767,6 +901,15 @@ class Wannier90OptimizeWorkChain(
         if self.ctx.spin_collinear and "spinor_bands" in self.ctx:
             self.ctx.optimize_spinor_bands.append(self.ctx.spinor_bands)
 
+        # For Bayesian strategy, queue the next candidate based on collected results
+        if (
+            self.ctx.optimize_strategy == OptimizeStrategy.BAYESIAN
+            and len(self.ctx.optimize_minmax_new) == 0
+            and len(self.ctx.optimize_minmax) < self.ctx.bayesian_max_iterations
+        ):
+            next_candidate = self._bayesian_next_candidate()
+            self.ctx.optimize_minmax_new.append(next_candidate)
+
     def inspect_wannier90_optimize_final(self):
         """Select the optimal choice for dis_proj_min/max."""
         if not self.has_run_wannier90_optimize():
@@ -1102,17 +1245,255 @@ class Wannier90OptimizeWorkChain(
     def _get_bands_distance(
         self, wannier_workchain: ty.Union[Wannier90BaseWorkChain, list]
     ) -> float:
-        """Get bands distance for Fermi energy + 2eV."""
+        """Get bands distance using the configured metric."""
         ref_bands = self.inputs["optimize_reference_bands"]
-        if self.ctx.spin_collinear:
-            bandsdist, spinor_bands = get_bands_distance_ef2(
-                ref_bands, wannier_workchain
-            )
-            self.ctx.spinor_bands = spinor_bands
-        else:
-            bandsdist = get_bands_distance_ef2(ref_bands, wannier_workchain)[0]
+        metric = self.ctx.optimize_metric
 
-        return bandsdist
+        wan_bands, wan_parameters = _extract_wan_bands(
+            wannier_workchain, self.ctx
+        )
+        exclude_list_dft = wan_parameters.get("exclude_bands", None)
+
+        if metric == OptimizeMetric.UNWEIGHTED_RMS:
+            from aiida_wannier90_workflows.utils.bands.distance import bands_distance_unweighted
+            return bands_distance_unweighted(ref_bands, wan_bands, exclude_list_dft)
+
+        if metric == OptimizeMetric.FERMI_DIRAC_EF2:
+            # Legacy: sharp step at Ef+2
+            fermi_energy = wan_parameters.get("fermi_energy")
+            mu = fermi_energy + 2.0
+            sigma = 0.1
+        else:
+            # FERMI_DIRAC: configurable mu and sigma
+            mu_shift = self.inputs["optimize_mu_shift"].value
+            sigma = self.inputs["optimize_sigma"].value
+            mu_ref = OptimizeMuReference(self.inputs["optimize_mu_reference"].value)
+            mu = _resolve_mu(
+                mu_ref, mu_shift, wan_parameters, ref_bands
+            )
+
+        from aiida_wannier90_workflows.utils.bands.distance import bands_distance_fermi_dirac
+        return bands_distance_fermi_dirac(
+            ref_bands, wan_bands, mu=mu, sigma=sigma,
+            exclude_list_dft=exclude_list_dft,
+        )
+
+    # Minimum separation between trial points (fraction of the parameter range)
+    _BAYESIAN_MIN_SEPARATION = 0.05
+
+    # Deterministic initial trials: low endpoint, high endpoint, midpoint.
+    _N_DETERMINISTIC_INITIAL = 3
+
+    def _bayesian_next_candidate(self) -> tuple:
+        """Select the next (dis_proj_min, dis_proj_max) to evaluate using Bayesian optimization.
+
+        The first three trials are deterministic: the low endpoint, the high
+        endpoint, and the midpoint of each active dimension.  Subsequent trials
+        are chosen by a Gaussian-process surrogate with Expected Improvement.
+
+        Uses high exploration (xi=0.1) and enforces a minimum separation between
+        trial points to avoid wasting iterations on near-duplicate evaluations.
+        """
+        from skopt import Optimizer
+
+        bounds = self.ctx.bayesian_bounds
+        # Collapse dimensions where the range is a single point
+        active_dims = [i for i, (lo, hi) in enumerate(bounds) if lo != hi]
+
+        if not active_dims:
+            # Both parameters are fixed — just return the single point
+            return (bounds[0][0], bounds[1][0])
+
+        active_bounds = [bounds[i] for i in active_dims]
+        n_obs = len(self.ctx.optimize_minmax)
+
+        # First three trials: endpoints and midpoint
+        if n_obs < self._N_DETERMINISTIC_INITIAL:
+            initial_points = [
+                [lo for lo, hi in active_bounds],
+                [hi for lo, hi in active_bounds],
+                [(lo + hi) / 2 for lo, hi in active_bounds],
+            ]
+            suggested = initial_points[n_obs]
+        else:
+            # Use GP-guided search after the initial trials
+            optimizer = Optimizer(
+                dimensions=active_bounds,
+                base_estimator="GP",
+                acq_func="EI",
+                acq_func_kwargs={"xi": 0.1},  # encourage exploration
+                n_initial_points=0,
+                random_state=42,
+            )
+
+            # Feed in all past observations
+            objective = self._get_bayesian_objective()
+            if objective is not None:
+                x_observed, y_observed = objective
+                optimizer.tell(x_observed, y_observed)
+
+            suggested = optimizer.ask()
+
+            # Enforce minimum separation from all previous points
+            suggested = self._enforce_min_separation(
+                suggested, active_dims, active_bounds,
+            )
+
+        # Reconstruct the full (dis_proj_min, dis_proj_max) tuple
+        result = [bounds[0][0], bounds[1][0]]
+        for idx, dim in enumerate(active_dims):
+            result[dim] = suggested[idx]
+        return tuple(result)
+
+    def _enforce_min_separation(self, suggested, active_dims, active_bounds):
+        """Ensure the suggested point is sufficiently far from all previous points.
+
+        If the suggested point is within ``_BAYESIAN_MIN_SEPARATION`` (as a
+        fraction of range) of any previous point in every active dimension,
+        shift it to the midpoint of the largest gap in the first active dimension.
+        """
+        if not self.ctx.optimize_minmax:
+            return suggested
+
+        ranges = [hi - lo for lo, hi in active_bounds]
+        min_dists = [r * self._BAYESIAN_MIN_SEPARATION for r in ranges]
+
+        # Check distance to all previous points
+        for prev_minmax in self.ctx.optimize_minmax:
+            prev_active = [prev_minmax[d] for d in active_dims]
+            too_close = all(
+                abs(suggested[i] - prev_active[i]) < min_dists[i]
+                for i in range(len(active_dims))
+            )
+            if too_close:
+                # Find the largest gap in the first active dimension
+                dim0 = active_dims[0]
+                prev_vals = sorted(
+                    [mm[dim0] for mm in self.ctx.optimize_minmax]
+                )
+                lo, hi = active_bounds[0]
+                # Include boundary points
+                all_vals = [lo] + prev_vals + [hi]
+                gaps = [(all_vals[i+1] - all_vals[i], i) for i in range(len(all_vals)-1)]
+                largest_gap, gap_idx = max(gaps)
+                midpoint = (all_vals[gap_idx] + all_vals[gap_idx + 1]) / 2
+
+                self.report(
+                    f"Suggested point too close to previous trial, "
+                    f"shifting dim {dim0} to {midpoint:.4f} (largest gap={largest_gap:.4f})"
+                )
+                suggested = list(suggested)
+                suggested[0] = midpoint
+                return suggested
+
+        return suggested
+
+    def _get_bayesian_objective(self) -> ty.Optional[tuple]:
+        """Return (X, Y) observations for the Bayesian optimizer.
+
+        X is a list of active-dimension coordinates, Y is the corresponding
+        objective values.  Uses bands distance if available, otherwise spreads
+        imbalance.  Returns None if no observations yet.
+        """
+        if not self.ctx.optimize_minmax:
+            return None
+
+        bounds = self.ctx.bayesian_bounds
+        active_dims = [i for i, (lo, hi) in enumerate(bounds) if lo != hi]
+
+        x_observed = []
+        y_observed = []
+        for i, minmax in enumerate(self.ctx.optimize_minmax):
+            # Get the objective value — prefer bands distance, fall back to spreads
+            if i < len(self.ctx.optimize_bandsdist) and self.ctx.optimize_bandsdist[i] is not None:
+                y = self.ctx.optimize_bandsdist[i]
+            elif i < len(self.ctx.optimize_spreads_imbalence) and self.ctx.optimize_spreads_imbalence[i] is not None:
+                y = self.ctx.optimize_spreads_imbalence[i]
+            else:
+                # Failed iteration — use a large penalty
+                y = 1e5
+            x_observed.append([minmax[dim] for dim in active_dims])
+            y_observed.append(y)
+
+        return x_observed, y_observed
+
+
+def _extract_wan_bands(
+    wannier_workchain: ty.Union[Wannier90BaseWorkChain, list],
+    ctx: ty.Any,
+) -> ty.Tuple[orm.BandsData, dict]:
+    """Extract Wannier bands and parameters from a workchain.
+
+    Handles both spin-collinear (list of up/down workchains) and
+    non-collinear (single workchain) cases.
+
+    :return: (wan_bands, wan_parameters) tuple.
+    """
+    from .bands import get_spinor_band_structure
+
+    if isinstance(wannier_workchain, list):
+        wan_bands_up = wannier_workchain[0].outputs["interpolated_bands"]
+        wan_bands_down = wannier_workchain[1].outputs["interpolated_bands"]
+        structure = wannier_workchain[0].inputs["wannier90"]["structure"]
+        wan_bands = get_spinor_band_structure(wan_bands_up, wan_bands_down, structure)
+        wan_parameters = (
+            wannier_workchain[0].inputs["wannier90"]["parameters"].get_dict()
+        )
+        ctx.spinor_bands = wan_bands
+    else:
+        wan_bands = wannier_workchain.outputs["interpolated_bands"]
+        wan_parameters = wannier_workchain.inputs["wannier90"]["parameters"].get_dict()
+
+    return wan_bands, wan_parameters
+
+
+def _resolve_mu(
+    mu_ref: OptimizeMuReference,
+    mu_shift: float,
+    wan_parameters: dict,
+    ref_bands: orm.BandsData,
+) -> float:
+    """Compute the Fermi-Dirac mu from the chosen reference point.
+
+    :param mu_ref: Which energy to use as the base for mu.
+    :param mu_shift: Offset added to the reference energy (eV).
+    :param wan_parameters: Wannier90 parameters dict (contains fermi_energy).
+    :param ref_bands: DFT reference bands (used for CBM/VBM extraction).
+    :return: mu in eV.
+    """
+    fermi_energy = wan_parameters.get("fermi_energy")
+
+    if mu_ref == OptimizeMuReference.FERMI_ENERGY:
+        return fermi_energy + mu_shift
+
+    bands_array = ref_bands.get_bands()
+    # bands_array shape: (nkpts, nbands) or (nspins, nkpts, nbands)
+    if bands_array.ndim == 3:
+        # Flatten spin dimension for CBM/VBM search
+        bands_flat = bands_array.reshape(-1, bands_array.shape[-1])
+    else:
+        bands_flat = bands_array
+
+    if mu_ref == OptimizeMuReference.CBM:
+        above_ef = bands_flat[bands_flat > fermi_energy]
+        if above_ef.size == 0:
+            raise ValueError(
+                "No bands above the Fermi energy — cannot determine CBM. "
+                "Check that the reference bands include conduction states."
+            )
+        cbm = float(above_ef.min())
+        return cbm + mu_shift
+
+    if mu_ref == OptimizeMuReference.VBM:
+        below_ef = bands_flat[bands_flat <= fermi_energy]
+        if below_ef.size == 0:
+            raise ValueError(
+                "No bands at or below the Fermi energy — cannot determine VBM."
+            )
+        vbm = float(below_ef.max())
+        return vbm + mu_shift
+
+    raise ValueError(f"Unknown mu reference: {mu_ref}")
 
 
 def get_bands_distance_ef2(

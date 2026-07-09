@@ -24,7 +24,71 @@ def compute_lower_cutoff(energy: np.array, lower_cutoff: float) -> np.array:
     return np.array(energy > lower_cutoff, dtype=int)
 
 
-def bands_distance_raw(  # pylint: disable=too-many-arguments,too-many-locals
+def _align_bands(
+    dft_bands: np.array,
+    wannier_bands: np.array,
+    exclude_list_dft: list = None,
+) -> tuple[np.array, np.array]:
+    """Filter excluded bands and align DFT/Wannier arrays to the same shape.
+
+    Handles spin-collinear bands with shape (num_spins, num_kpts, num_bands)
+    by transposing to (num_kpts, num_bands, num_spins).
+
+    :return: (dft_bands_to_compare, wannier_bands_filtered) with matching shapes.
+    """
+    # When spin collinear bands, bands.shape == (num_spins, num_kpts, num_bands)
+    # Move it to bands.shape = (num_kpts, num_bands, num_spins)
+    if len(dft_bands.shape) == 3 and len(wannier_bands.shape) == 3:
+        dft_bands = np.moveaxis(dft_bands, [-2, -1], [0, 1])
+        wannier_bands = np.moveaxis(wannier_bands, [-2, -1], [0, 1])
+
+    if exclude_list_dft is None or len(exclude_list_dft) == 0:
+        dft_bands_filtered = dft_bands
+    else:
+        xb_startzero_set = {idx - 1 for idx in exclude_list_dft}
+        keep_bands = np.array(
+            [idx for idx in range(dft_bands.shape[1]) if idx not in xb_startzero_set]
+        )
+        dft_bands_filtered = dft_bands[:, keep_bands]
+
+    assert (
+        dft_bands_filtered.shape[0] == wannier_bands.shape[0]
+    ), f"Different number of kpoints {dft_bands_filtered.shape[0]} {wannier_bands.shape[0]}"
+
+    if dft_bands_filtered.shape[1] <= wannier_bands.shape[1]:
+        wannier_bands_filtered = wannier_bands[:, : dft_bands_filtered.shape[1]]
+    else:
+        wannier_bands_filtered = wannier_bands
+
+    dft_bands_to_compare = dft_bands_filtered[:, : wannier_bands_filtered.shape[1]]
+
+    return dft_bands_to_compare, wannier_bands_filtered
+
+
+def _compute_distance(
+    bands_energy_difference: np.array,
+    bands_weight: np.array,
+) -> tuple:
+    """Compute weighted RMS distance and max-distance metrics.
+
+    :return: (bands_dist, max_dist, max_dist_2, max_dist_loc, max_dist_2_loc)
+    """
+    arr = bands_energy_difference**2 * bands_weight
+    bands_dist = np.sqrt(np.sum(arr) / np.sum(bands_weight))
+
+    # max distance
+    max_dist = np.sqrt(np.max(arr))
+    max_dist_loc = np.unravel_index(np.argmax(arr, axis=None), arr.shape)
+
+    arr_2 = np.abs(bands_energy_difference) * bands_weight
+    # max abs difference
+    max_dist_2 = np.max(arr_2)
+    max_dist_2_loc = np.unravel_index(np.argmax(arr_2, axis=None), arr_2.shape)
+
+    return (bands_dist, max_dist, max_dist_2, max_dist_loc, max_dist_2_loc)
+
+
+def bands_distance_raw(
     dft_bands: np.array,
     wannier_bands: np.array,
     mu: float,
@@ -39,76 +103,31 @@ def bands_distance_raw(  # pylint: disable=too-many-arguments,too-many-locals
        number of bands computed by the DFT code. In eV.
     :param wannier_bands: a numpy array of size (num_k x num_wan) where num_wan is
        number of Wannier functions.  In eV.
-    :para mu, sigma: in eV.
+    :param mu, sigma: in eV.
     :param exclude_list_dft: if passed should be a list of the excluded bands,
        1-indexed
     :param gaussian_weight: if True, gaussian weight will be used instead of
         Fermi-Dirac
     """
-
-    # When spin collinear bands, bands.shape == (num_spins, num_kpts, num_bands)
-    # Move it to bands.shape = (num_kpts, num_bands, num_spins), so we should not
-    # move the index position
-    if len(dft_bands.shape) == 3 and len(wannier_bands.shape) == 3:
-        dft_bands = np.moveaxis(dft_bands, [-2, -1], [0, 1])
-        wannier_bands = np.moveaxis(wannier_bands, [-2, -1], [0, 1])
-    if exclude_list_dft is None:
-        exclude_list_dft = []
-        dft_bands_filtered = dft_bands
-    else:
-        # Code taken and *adapted* from the workflow (function get_exclude_bands)
-        xb_startzero_set = {idx - 1 for idx in exclude_list_dft}
-        # in Fortran/W90: 1-based; in py: 0-based
-        keep_bands = np.array(
-            [idx for idx in range(dft_bands.shape[1]) if idx not in xb_startzero_set]
-        )
-
-        dft_bands_filtered = dft_bands[:, keep_bands]
-
-    # Check that the number of kpoints is the same
-    assert (
-        dft_bands_filtered.shape[0] == wannier_bands.shape[0]
-    ), f"Different number of kpoints {dft_bands_filtered.shape[0]} {wannier_bands.shape[0]}"
-    # assert dft_bands_filtered.shape[1] >= wannier_bands.shape[
-    #     1], f'Too few DFT bands w.r.t. Wannier {dft_bands_filtered.shape[1]} {wannier_bands.shape[1]}'
-    if dft_bands_filtered.shape[1] <= wannier_bands.shape[1]:
-        wannier_bands_filtered = wannier_bands[:, : dft_bands_filtered.shape[1]]
-    else:
-        wannier_bands_filtered = wannier_bands
-
-    dft_bands_to_compare = dft_bands_filtered[:, : wannier_bands_filtered.shape[1]]
+    dft_bands_to_compare, wannier_bands_filtered = _align_bands(
+        dft_bands, wannier_bands, exclude_list_dft
+    )
 
     bands_energy_difference = dft_bands_to_compare - wannier_bands_filtered
     if gaussian_weight:
-        bands_weight_dft = gaussian(
-            dft_bands_to_compare, mu, sigma
-        ) * compute_lower_cutoff(dft_bands_to_compare, lower_cutoff)
-        bands_weight_wannier = gaussian(
-            wannier_bands_filtered, mu, sigma
-        ) * compute_lower_cutoff(dft_bands_to_compare, lower_cutoff)
+        weight_fn = gaussian
     else:
-        bands_weight_dft = fermi_dirac(
-            dft_bands_to_compare, mu, sigma
-        ) * compute_lower_cutoff(dft_bands_to_compare, lower_cutoff)
-        bands_weight_wannier = fermi_dirac(
-            wannier_bands_filtered, mu, sigma
-        ) * compute_lower_cutoff(dft_bands_to_compare, lower_cutoff)
+        weight_fn = fermi_dirac
+    bands_weight_dft = weight_fn(
+        dft_bands_to_compare, mu, sigma
+    ) * compute_lower_cutoff(dft_bands_to_compare, lower_cutoff)
+    bands_weight_wannier = weight_fn(
+        wannier_bands_filtered, mu, sigma
+    ) * compute_lower_cutoff(dft_bands_to_compare, lower_cutoff)
 
     bands_weight = np.sqrt(bands_weight_dft * bands_weight_wannier)
-    arr = bands_energy_difference**2 * bands_weight
-    bands_dist = np.sqrt(np.sum(arr) / np.sum(bands_weight))
 
-    # max distance
-    max_dist = np.sqrt(np.max(arr))
-    max_dist_loc = np.unravel_index(np.argmax(arr, axis=None), arr.shape)
-    # print(np.shape(arr), max_distance_loc)
-
-    arr_2 = np.abs(bands_energy_difference) * bands_weight
-    # max abs difference
-    max_dist_2 = np.max(arr_2)
-    max_dist_2_loc = np.unravel_index(np.argmax(arr_2, axis=None), arr_2.shape)
-
-    return (bands_dist, max_dist, max_dist_2, max_dist_loc, max_dist_2_loc)
+    return _compute_distance(bands_energy_difference, bands_weight)
 
 
 def bands_distance(
@@ -163,19 +182,18 @@ def bands_distance(
     return dist
 
 
-def bands_distance_isolated(  # pylint: disable=too-many-locals
+def bands_distance_isolated(
     dft_bands: ty.Union[orm.BandsData, np.array],
     wannier_bands: ty.Union[orm.BandsData, np.array],
     exclude_list_dft: list = None,
     lower_cutoff: float = None,
 ) -> tuple:
-    """Calculate bands distance with specified group of bands.
+    """Calculate bands distance with uniform weights (no energy-dependent weighting).
 
     :param dft_bands: a numpy array of size (num_k x num_dft) where num_dft is
        number of bands computed by the DFT code. In eV.
     :param wannier_bands: a numpy array of size (num_k x num_wan) where num_wan is
        number of Wannier functions.  In eV.
-    :para mu, sigma: in eV.
     :param exclude_list_dft: if passed should be a list of the excluded bands,
        1-indexed
     """
@@ -184,48 +202,85 @@ def bands_distance_isolated(  # pylint: disable=too-many-locals
     if isinstance(wannier_bands, orm.BandsData):
         wannier_bands = wannier_bands.get_bands()
 
-    if exclude_list_dft is None:
-        exclude_list_dft = []
-        dft_bands_filtered = dft_bands
-    else:
-        # Code taken and *adapted* from the workflow (function get_exclude_bands)
-        xb_startzero_set = {idx - 1 for idx in exclude_list_dft}
-        # in Fortran/W90: 1-based; in py: 0-based
-        keep_bands = np.array(
-            [idx for idx in range(dft_bands.shape[1]) if idx not in xb_startzero_set]
-        )
-
-        dft_bands_filtered = dft_bands[:, keep_bands]
-
-    # Check that the number of kpoints is the same
-    assert (
-        dft_bands_filtered.shape[0] == wannier_bands.shape[0]
-    ), f"Different number of kpoints {dft_bands_filtered.shape[0]} {wannier_bands.shape[0]}"
-    # assert dft_bands_filtered.shape[1] >= wannier_bands.shape[
-    #     1], f'Too few DFT bands w.r.t. Wannier {dft_bands_filtered.shape[1]} {wannier_bands.shape[1]}'
-    if dft_bands_filtered.shape[1] <= wannier_bands.shape[1]:
-        wannier_bands_filtered = wannier_bands[:, : dft_bands_filtered.shape[1]]
-    else:
-        wannier_bands_filtered = wannier_bands
-
-    dft_bands_to_compare = dft_bands_filtered[:, : wannier_bands_filtered.shape[1]]
+    dft_bands_to_compare, wannier_bands_filtered = _align_bands(
+        dft_bands, wannier_bands, exclude_list_dft
+    )
 
     bands_energy_difference = dft_bands_to_compare - wannier_bands_filtered
-    bands_weight_dft = compute_lower_cutoff(dft_bands_to_compare, lower_cutoff)
-    bands_weight_wannier = compute_lower_cutoff(dft_bands_to_compare, lower_cutoff)
-    bands_weight = np.sqrt(bands_weight_dft * bands_weight_wannier)
+    bands_weight = compute_lower_cutoff(dft_bands_to_compare, lower_cutoff)
 
-    arr = bands_energy_difference**2 * bands_weight
-    bands_dist = np.sqrt(np.sum(arr) / np.sum(bands_weight))
+    return _compute_distance(bands_energy_difference, bands_weight)
 
-    # max distance
-    max_dist = np.sqrt(np.max(arr))
-    max_dist_loc = np.unravel_index(np.argmax(arr, axis=None), arr.shape)
-    # print(np.shape(arr), max_distance_loc)
 
-    arr_2 = np.abs(bands_energy_difference) * bands_weight
-    # max abs difference
-    max_dist_2 = np.max(arr_2)
-    max_dist_2_loc = np.unravel_index(np.argmax(arr_2, axis=None), arr_2.shape)
+def bands_distance_fermi_dirac(
+    bands_dft: ty.Union[orm.BandsData, np.array],
+    bands_wannier: ty.Union[orm.BandsData, np.array],
+    mu: float,
+    sigma: float,
+    exclude_list_dft: list = None,
+) -> float:
+    """Fermi-Dirac-weighted RMS bands distance.
 
-    return (bands_dist, max_dist, max_dist_2, max_dist_loc, max_dist_2_loc)
+    Computes the weighted RMS difference between DFT and Wannier bands,
+    where each band's contribution is weighted by a Fermi-Dirac function
+    centered at ``mu`` with broadening ``sigma``.
+
+    :param bands_dft: DFT reference bands (BandsData or numpy array, in eV).
+    :param bands_wannier: Wannier-interpolated bands (BandsData or numpy array, in eV).
+    :param mu: Center of the Fermi-Dirac weight (eV). Typically Fermi energy
+        or Fermi energy + some shift.
+    :param sigma: Broadening of the Fermi-Dirac weight (eV). Small values
+        (~0.1) give a sharp step; large values (~2-5) give a long tail.
+    :param exclude_list_dft: Bands to exclude from DFT reference, 1-indexed.
+    :return: Weighted RMS band distance in eV.
+    """
+    if isinstance(bands_dft, orm.BandsData):
+        dft_bands = bands_dft.get_bands()
+    else:
+        dft_bands = bands_dft
+    if isinstance(bands_wannier, orm.BandsData):
+        wannier_bands = bands_wannier.get_bands()
+    else:
+        wannier_bands = bands_wannier
+
+    res = bands_distance_raw(
+        dft_bands=dft_bands,
+        wannier_bands=wannier_bands,
+        mu=mu,
+        sigma=sigma,
+        exclude_list_dft=exclude_list_dft,
+    )
+    return float(res[0])
+
+
+def bands_distance_unweighted(
+    bands_dft: ty.Union[orm.BandsData, np.array],
+    bands_wannier: ty.Union[orm.BandsData, np.array],
+    exclude_list_dft: list = None,
+) -> float:
+    """Calculate unweighted RMS bands distance across all bands equally.
+
+    All bands contribute equally to the metric, unlike Fermi-Dirac weighting
+    which emphasises bands near the Fermi level.
+
+    :param bands_dft: DFT reference bands.
+    :param bands_wannier: Wannier-interpolated bands.
+    :param exclude_list_dft: if passed should be a list of the excluded bands,
+       1-indexed.
+    :return: RMS band distance in eV.
+    """
+    if isinstance(bands_dft, orm.BandsData):
+        dft_bands = bands_dft.get_bands()
+    else:
+        dft_bands = bands_dft
+    if isinstance(bands_wannier, orm.BandsData):
+        wannier_bands = bands_wannier.get_bands()
+    else:
+        wannier_bands = bands_wannier
+
+    dft_bands_to_compare, wannier_bands_filtered = _align_bands(
+        dft_bands, wannier_bands, exclude_list_dft
+    )
+
+    diff = dft_bands_to_compare - wannier_bands_filtered
+    return float(np.sqrt(np.mean(diff**2)))

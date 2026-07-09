@@ -247,6 +247,7 @@ class Wannier90BaseWorkChain(ProtocolMixin, BaseRestartWorkChain):
         projection_type: WannierProjectionType = WannierProjectionType.ATOMIC_PROJECTORS_QE,
         disentanglement_type: WannierDisentanglementType = WannierDisentanglementType.SMV,
         frozen_type: WannierFrozenType = WannierFrozenType.FIXED_PLUS_PROJECTABILITY,
+        only_valence: bool | None = None,
     ) -> ProcessBuilder:
         """Return a builder prepopulated with inputs selected according to the chosen protocol.
 
@@ -314,7 +315,8 @@ class Wannier90BaseWorkChain(ProtocolMixin, BaseRestartWorkChain):
         )
 
         # Set `num_bands`, `num_wann`, also take care of semicore states
-        only_valence = electronic_type == ElectronicType.INSULATOR
+        if only_valence is None:
+            only_valence = electronic_type == ElectronicType.INSULATOR
         spin_polarized = spin_type == SpinType.COLLINEAR
         spin_orbit_coupling = spin_type == SpinType.SPIN_ORBIT
         spin_non_collinear = spin_orbit_coupling or spin_type == SpinType.NON_COLLINEAR
@@ -370,7 +372,7 @@ class Wannier90BaseWorkChain(ProtocolMixin, BaseRestartWorkChain):
                 spin_orbit_coupling=spin_orbit_coupling,
             )
 
-        if electronic_type == ElectronicType.INSULATOR:
+        if electronic_type == ElectronicType.INSULATOR and only_valence:
             num_wann = num_bands
         else:
             num_wann = num_projs
@@ -470,6 +472,7 @@ class Wannier90BaseWorkChain(ProtocolMixin, BaseRestartWorkChain):
             elif frozen_type == WannierFrozenType.PROJECTABILITY:
                 parameters.update(
                     {
+                        "dis_froz_proj": True,
                         "dis_proj_min": 0.01,
                         "dis_proj_max": 0.95,
                     }
@@ -478,6 +481,7 @@ class Wannier90BaseWorkChain(ProtocolMixin, BaseRestartWorkChain):
                 inputs["shift_energy_windows"] = True
                 parameters.update(
                     {
+                        "dis_froz_proj": True,
                         "dis_proj_min": 0.01,
                         "dis_proj_max": 0.95,
                         "dis_froz_max": +2.0,  # relative to fermi_energy

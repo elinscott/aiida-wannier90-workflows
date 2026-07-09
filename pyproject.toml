@@ -70,6 +70,7 @@ dev = [
     "upf-tools"
 ]
 analysis = ["pandas", "tables", "scikit-learn"]
+optimization = ["scikit-optimize>=0.9"]
 
 [project.scripts]
 "aiida-wannier90-workflows" = "aiida_wannier90_workflows.cli:cmd_root"
