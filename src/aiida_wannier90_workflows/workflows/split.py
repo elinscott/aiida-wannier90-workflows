@@ -247,6 +247,14 @@ class Wannier90SplitWorkChain(WorkChain):  # pylint: disable=too-many-public-met
         reference_bands = kwargs.pop("reference_bands", None)
         exclude_semicore = kwargs.pop("exclude_semicore", True)
 
+        spin_type = kwargs.get("spin_type", SpinType.NONE)
+        if spin_type != SpinType.NONE:
+            raise ValueError(
+                f"`spin_type={spin_type}` is not supported: the valence and conduction "
+                "Wannier90 calculations of a split are always unpolarized. Pass "
+                "`spin_type=SpinType.NONE`, or leave the keyword out."
+            )
+
         # Prepare workchain builder
         valcond_builder = Wannier90OptimizeWorkChain.get_builder_from_protocol(
             codes,
@@ -281,7 +289,22 @@ class Wannier90SplitWorkChain(WorkChain):  # pylint: disable=too-many-public-met
 
         num_wann = parameters["num_wann"]
 
-        val_builder = Wannier90BaseWorkChain.get_builder_from_protocol(  # pylint: disable=too-many-function-args
+        # The valence manifold is fully occupied by construction, so it is insulating and
+        # needs neither disentanglement nor a frozen window, whatever was asked of the
+        # val+cond Wannierization above.
+        val_kwargs = {
+            key: value
+            for key, value in kwargs.items()
+            if key
+            not in (
+                "electronic_type",
+                "spin_type",
+                "disentanglement_type",
+                "frozen_type",
+            )
+        }
+
+        val_builder = Wannier90BaseWorkChain.get_builder_from_protocol(
             codes["wannier90"],
             structure=structure,
             electronic_type=ElectronicType.INSULATOR,
@@ -289,7 +312,7 @@ class Wannier90SplitWorkChain(WorkChain):  # pylint: disable=too-many-public-met
             projection_type=WannierProjectionType.RANDOM,  # no need projection
             disentanglement_type=WannierDisentanglementType.NONE,
             frozen_type=WannierFrozenType.NONE,
-            **kwargs,
+            **val_kwargs,
         )
         val_inputs = val_builder._inputs(prune=True)  # pylint: disable=protected-access
         parameters = val_inputs["wannier90"]["parameters"].get_dict()
