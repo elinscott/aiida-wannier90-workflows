@@ -2,11 +2,15 @@
 
 # pylint: disable=protected-access
 import pathlib
+import tempfile
 import typing as ty
+
+import numpy as np
 
 from aiida import orm
 from aiida.common import AttributeDict
 from aiida.common.lang import type_check
+from aiida.engine import calcfunction
 from aiida.engine.processes import ProcessBuilder, ToContext, WorkChain, if_
 from aiida.orm.nodes.data.base import to_aiida_type
 
@@ -23,12 +27,63 @@ from aiida_wannier90_workflows.common.types import (
     WannierFrozenType,
     WannierProjectionType,
 )
+from aiida_wannier90_workflows.utils.parser.amn import read_amn, write_amn
 
 from .base.projwfc import ProjwfcBaseWorkChain
 from .base.pw2wannier90 import Pw2wannier90BaseWorkChain
 from .base.wannier90 import Wannier90BaseWorkChain
 
-__all__ = ["validate_inputs", "Wannier90WorkChain"]
+__all__ = ["validate_inputs", "rewrite_amn_with_rotation", "Wannier90WorkChain"]
+
+
+_PROJECTOR_ROTATION_HELP = (
+    "Optional square unitary (num_wann x num_wann, complex, stored as "
+    "array 'B' in an ArrayData) applied as A' = B @ A to the "
+    "pw2wannier90 projection matrix before wannier90 reads it. When "
+    "provided, the workchain rewrites <seedname>.amn accordingly and "
+    "passes the patched folder to wannier90 as local_input_folder."
+)
+
+
+@calcfunction
+def rewrite_amn_with_rotation(
+    remote_folder: orm.RemoteData,
+    projector_rotation: orm.ArrayData,
+    seedname: orm.Str,
+) -> orm.FolderData:
+    """Return a FolderData with amn rotated by B, and mmn/eig copied over.
+
+    Files are pulled from ``remote_folder`` via AiiDA's transport layer.
+    """
+    seed = seedname.value
+
+    B = projector_rotation.get_array("B")
+    if B.ndim != 2 or B.shape[0] != B.shape[1]:
+        raise ValueError(
+            f"projector_rotation must be a square 2D array, got shape {B.shape}"
+        )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = pathlib.Path(tmpdir)
+        for suffix in ("amn", "mmn", "eig"):
+            remote_folder.getfile(f"{seed}.{suffix}", str(tmp / f"{seed}.{suffix}"))
+
+        amn_path = tmp / f"{seed}.amn"
+        header, A = read_amn(amn_path)
+        _, num_wann, _ = A.shape
+        if B.shape[0] != num_wann:
+            raise ValueError(
+                f"projector_rotation has dim {B.shape[0]} but "
+                f"{seed}.amn has num_wann={num_wann}"
+            )
+        A_rot = np.einsum("ij,kjn->kin", B.astype(np.complex128), A)
+        new_header = (
+            header.strip()
+            + f" | rotated by projector_rotation pk={projector_rotation.pk}"
+        )
+        write_amn(amn_path, A_rot, new_header)
+
+        return orm.FolderData(tree=str(tmp))
 
 
 def validate_inputs(  # pylint: disable=unused-argument,inconsistent-return-statements
@@ -92,6 +147,12 @@ class Wannier90WorkChain(
                 "If True, work directories of all called calculation will be cleaned "
                 "at the end of execution."
             ),
+        )
+        spec.input(
+            "projector_rotation",
+            valid_type=orm.ArrayData,
+            required=False,
+            help=_PROJECTOR_ROTATION_HELP,
         )
         spec.expose_inputs(
             PwBaseWorkChain,
@@ -1161,6 +1222,21 @@ class Wannier90WorkChain(
 
         base_inputs["wannier90"] = inputs
         base_inputs["clean_workdir"] = orm.Bool(False)
+
+        if "projector_rotation" in self.inputs:
+            w90_inputs = base_inputs["wannier90"]
+            remote_folder = w90_inputs.pop("remote_input_folder", None)
+            if remote_folder is None:
+                raise RuntimeError(
+                    "projector_rotation was provided but remote_input_folder "
+                    "is not set on the wannier90 inputs"
+                )
+            w90_inputs["local_input_folder"] = rewrite_amn_with_rotation(
+                remote_folder=remote_folder,
+                projector_rotation=self.inputs.projector_rotation,
+                seedname=orm.Str("aiida"),
+                metadata={"call_link_label": "rotate_amn"},
+            )
 
         return base_inputs
 
