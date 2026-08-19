@@ -447,7 +447,10 @@ def _run_through_wannier90_pp(
     remote.base.links.add_incoming(
         scf_workchain, link_type=LinkType.RETURN, link_label="remote_folder"
     )
-    params = orm.Dict({"fermi_energy": 6.0, "number_of_electrons": 8})
+    # `get_fermi_energy` reads a value only when `fermi_energy_units` is `eV`.
+    params = orm.Dict(
+        {"fermi_energy": 6.0, "fermi_energy_units": "eV", "number_of_electrons": 8}
+    )
     params.store()
     params.base.links.add_incoming(
         scf_workchain, link_type=LinkType.RETURN, link_label="output_parameters"
