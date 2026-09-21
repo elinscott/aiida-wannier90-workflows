@@ -423,30 +423,40 @@ class Wannier90BaseWorkChain(ProtocolMixin, BaseRestartWorkChain):
         ]:
             parameters["auto_projections"] = True
         elif projection_type == WannierProjectionType.ANALYTIC:
-            pseudo_orbitals = get_pseudo_orbitals(
-                pseudos, overrides=pseudo_orbitals_overrides
-            )
-            projections = []
-            if external_projectors is None:
-                for kind in structure.kinds:
-                    for orb in pseudo_orbitals[kind.name]["pswfcs"]:
-                        if meta_parameters["exclude_semicore"]:
-                            if orb in pseudo_orbitals[kind.name]["semicores"]:
-                                continue
-                        projections.append(f"{kind.name}:{orb[-1].lower()}")
-            else:  # external_projectors is not None
-                for kind in structure.kinds:
-                    for orb in external_projectors[kind.name]:
-                        if spin_orbit_coupling and orb.get("j", 0.0) < orb["l"]:
-                            continue  # avoid repeated counting
-                        if meta_parameters["exclude_semicore"]:
-                            if (
-                                orb["label"].upper()
-                                in pseudo_orbitals[kind.name]["semicores"]
-                            ):
-                                continue
-                        projections.append(f"{kind.name}:{orb['label'][-1].lower()}")
-            inputs[cls._inputs_namespace]["projections"] = orm.List(list=projections)
+            # ``overrides`` may already carry an explicit projection list --
+            # e.g. because the pseudopotentials' valence orbitals cannot be
+            # read (SG15 ONCV ships no PP_PSWFC). Deriving one from the
+            # pseudos is then both unneeded and, for such pseudos,
+            # impossible, so an explicit list is honored as given instead.
+            if "projections" not in inputs[cls._inputs_namespace]:
+                pseudo_orbitals = get_pseudo_orbitals(
+                    pseudos, overrides=pseudo_orbitals_overrides
+                )
+                projections = []
+                if external_projectors is None:
+                    for kind in structure.kinds:
+                        for orb in pseudo_orbitals[kind.name]["pswfcs"]:
+                            if meta_parameters["exclude_semicore"]:
+                                if orb in pseudo_orbitals[kind.name]["semicores"]:
+                                    continue
+                            projections.append(f"{kind.name}:{orb[-1].lower()}")
+                else:  # external_projectors is not None
+                    for kind in structure.kinds:
+                        for orb in external_projectors[kind.name]:
+                            if spin_orbit_coupling and orb.get("j", 0.0) < orb["l"]:
+                                continue  # avoid repeated counting
+                            if meta_parameters["exclude_semicore"]:
+                                if (
+                                    orb["label"].upper()
+                                    in pseudo_orbitals[kind.name]["semicores"]
+                                ):
+                                    continue
+                            projections.append(
+                                f"{kind.name}:{orb['label'][-1].lower()}"
+                            )
+                inputs[cls._inputs_namespace]["projections"] = orm.List(
+                    list=projections
+                )
         elif projection_type == WannierProjectionType.RANDOM:
             settings = inputs[cls._inputs_namespace].get("settings", {})
             settings.update({"random_projections": True})
